@@ -1,0 +1,143 @@
+use bevy::prelude::*;
+use rand::Rng;
+
+use crate::voxel::{Voxel, Voxels};
+
+pub struct GreedyMeshPlugin;
+
+#[derive(Component)]
+pub struct VoxelMarker;
+
+#[derive(Resource, Default)]
+pub struct GreedyMeshConfig {
+    pub greedy: bool,
+    pub two_d: bool,
+    pub greedy_blocks_2d: Voxels,
+    pub standard_blocks_2d: Voxels,
+    pub greedy_blocks_3d: Voxels,
+    pub standard_blocks_3d: Voxels,
+}
+
+impl Plugin for GreedyMeshPlugin {
+    fn build(&self, app: &mut App) {
+        app.init_resource::<GreedyMeshConfig>()
+            .add_startup_system(setup);
+    }
+}
+
+fn setup(mut mesh_config: ResMut<GreedyMeshConfig>) {
+    generate_voxels(&mut mesh_config);
+}
+
+pub fn generate_voxels(mesh_config: &mut GreedyMeshConfig) {
+    generate_3d_voxels(mesh_config);
+    generate_2d_voxels(mesh_config);
+}
+
+pub fn generate_2d_voxels(mesh_config: &mut GreedyMeshConfig) {
+    let mut voxels: Voxels = vec![vec![vec![Voxel::default(); 16]; 1]; 16];
+    assign_kind(&mut voxels);
+    mesh_config.standard_blocks_2d = voxels.clone();
+    greedy_mesh(&mut voxels);
+    mesh_config.greedy_blocks_2d = voxels.clone();
+}
+
+pub fn generate_3d_voxels(mesh_config: &mut GreedyMeshConfig) {
+    let mut voxels: Voxels = vec![vec![vec![Voxel::default(); 16]; 16]; 16];
+    assign_kind(&mut voxels);
+    mesh_config.standard_blocks_3d = voxels.clone();
+    greedy_mesh(&mut voxels);
+    mesh_config.greedy_blocks_3d = voxels.clone();
+}
+
+pub fn greedy_mesh(voxels: &mut Voxels) {
+    combine_x_voxels(voxels);
+    combine_z_voxels(voxels);
+    combine_y_voxels(voxels);
+}
+
+fn assign_kind(voxels: &mut Voxels) {
+    let mut rng = rand::thread_rng();
+    (0..voxels.len()).for_each(|x| {
+        (0..voxels[x].len()).for_each(|y| {
+            (0..voxels.len()).for_each(|z| {
+                let kind = rng.gen_range(0..3);
+                voxels[x][y][z] = Voxel::new(kind);
+            });
+        })
+    });
+}
+
+fn combine_y_voxels(voxels: &mut Voxels) {
+    if voxels[0].len() > 1 {
+        (0..voxels.len()).for_each(|x| {
+            (1..voxels[x].len()).for_each(|y| {
+                (0..voxels.len()).for_each(|z| {
+                    if voxels[x][y][z].kind_map() == voxels[x][y - 1][z].kind_map() {
+                        if let Some(current_size) = voxels[x][y][z].size {
+                            if let Some(previous_size) = voxels[x][y - 1][z].size {
+                                if current_size.0 == previous_size.0
+                                    && current_size.2 == previous_size.2
+                                {
+                                    voxels[x][y][z].size = Some((
+                                        current_size.0,
+                                        current_size.1 + previous_size.1,
+                                        current_size.2,
+                                    ));
+
+                                    voxels[x][y - 1][z].size = None;
+                                }
+                            }
+                        }
+                    }
+                });
+            });
+        });
+    }
+}
+
+fn combine_x_voxels(voxels: &mut Voxels) {
+    (1..voxels.len()).for_each(|x| {
+        (0..voxels[x].len()).for_each(|y| {
+            (0..voxels.len()).for_each(|z| {
+                let current_voxel = &voxels[x][y][z];
+                let previous_voxel = &voxels[x - 1][y][z];
+
+                if current_voxel.kind_map() == previous_voxel.kind_map() {
+                    voxels[x][y][z].size = Some((
+                        current_voxel.size.unwrap().0 + previous_voxel.size.unwrap().0,
+                        current_voxel.size.unwrap().1,
+                        current_voxel.size.unwrap().2,
+                    ));
+
+                    voxels[x - 1][y][z].size = None;
+                }
+            });
+        });
+    });
+}
+
+fn combine_z_voxels(voxels: &mut Voxels) {
+    (0..voxels.len()).for_each(|x| {
+        (0..voxels[x].len()).for_each(|y| {
+            (1..voxels.len()).for_each(|z| {
+                let current_voxel = &voxels[x][y][z];
+                let previous_voxel = &voxels[x][y][z - 1];
+
+                if voxels[x][y][z].size.is_some()
+                    && voxels[x][y][z - 1].size.is_some()
+                    && current_voxel.kind_map() == previous_voxel.kind_map()
+                    && voxels[x][y][z].size.unwrap().0 == voxels[x][y][z - 1].size.unwrap().0
+                {
+                    voxels[x][y][z].size = Some((
+                        current_voxel.size.unwrap().0,
+                        current_voxel.size.unwrap().1,
+                        current_voxel.size.unwrap().2 + previous_voxel.size.unwrap().2,
+                    ));
+
+                    voxels[x][y][z - 1].size = None;
+                }
+            });
+        });
+    });
+}
