@@ -7,10 +7,11 @@ mod ui;
 mod voxel;
 
 use bevy::{pbr::wireframe::WireframePlugin, prelude::*};
-use bevy_rapier3d::{
-    plugin::{NoUserData, RapierPhysicsPlugin},
-    prelude::RapierDebugRenderPlugin,
-};
+use bevy_mod_picking::DefaultPickingPlugins;
+// use bevy_rapier3d::{
+//     plugin::{NoUserData, RapierPhysicsPlugin},
+//     prelude::RapierDebugRenderPlugin,
+// };
 use camera::GameCameraPlugin;
 use greedy_mesher::GreedyMeshPlugin;
 use inputs::InputsPlugin;
@@ -22,8 +23,9 @@ fn main() {
     App::new()
         .add_plugins((
             DefaultPlugins,
-            RapierPhysicsPlugin::<NoUserData>::default(),
-            RapierDebugRenderPlugin::default(),
+            DefaultPickingPlugins,
+            // RapierPhysicsPlugin::<NoUserData>::default(),
+            // RapierDebugRenderPlugin::default(),
             WireframePlugin,
             LookTransformPlugin,
             OrbitCameraPlugin::default(),

@@ -1,7 +1,9 @@
 use crate::greedy_mesher::{GreedyMeshConfig, VoxelMarker};
 use crate::voxel::Voxels;
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::Collider;
+use bevy_mod_picking::prelude::{Click, On, Pointer, PointerButton, RaycastPickTarget};
+use bevy_mod_picking::PickableBundle;
+// use bevy_rapier3d::prelude::Collider;
 
 pub struct SpawnerPlugin;
 
@@ -19,20 +21,6 @@ fn on_config_change(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     if mesh_config.is_changed() {
-        commands.spawn(Collider::cuboid(0.5, 0.5, 0.5));
-
-        commands.spawn((
-            PbrBundle {
-                mesh: meshes.add(Mesh::from(shape::Cube::new(1.0))),
-                material: materials.add(StandardMaterial {
-                    base_color: Color::CRIMSON,
-                    unlit: true,
-                    ..default()
-                }),
-                ..Default::default()
-            },
-            VoxelMarker,
-        ));
         for entity in query.iter() {
             commands.entity(entity).despawn_recursive();
         }
@@ -42,7 +30,6 @@ fn on_config_change(
             } else {
                 &mesh_config.greedy_blocks_3d
             };
-
             spawn_cubes(&mut commands, &mut meshes, &mut materials, voxels);
         } else {
             let voxels = if mesh_config.two_d {
@@ -81,6 +68,22 @@ fn spawn_cubes(
                         ),
                         voxels[x][y][z].color(),
                     );
+
+                    commands.spawn((
+                        PbrBundle {
+                            transform: Transform::from_xyz(x as f32, y as f32, z as f32),
+                            mesh: meshes.add(Mesh::from(shape::Cube::new(1.0))),
+                            ..Default::default()
+                        },
+                        PickableBundle::default(),
+                        RaycastPickTarget::default(),
+                        On::<Pointer<Click>>::target_commands_mut(|click, target_commands| {
+                            println!("Clicked the invisible cube");
+                            // if click.button == PointerButton::Primary {
+                            //     target_commands.despawn();
+                            // }
+                        }),
+                    ));
                 }
             });
         });
@@ -93,7 +96,7 @@ fn get_cube_mesh(
 ) -> Handle<Mesh> {
     // x,z is the bottom left corner, if the size is 1, we need to add size.
     // if the size is 2, then our x,y is the bottom left corner of the furthest right voxel
-    let adjacent_top_corner = Vec3::new(coords.0 + 1.0, coords.1 + 1.0, coords.2 + 1.0);
+    let adjacent_top_corner = Vec3::new(coords.0 + 0.5, coords.1 + 0.5, coords.2 + 0.5);
 
     let bottom_corner = Vec3::new(
         adjacent_top_corner.x - coords.3,
@@ -107,20 +110,21 @@ fn get_cube_mesh(
     )))
 }
 
-fn spawn_cuboid(coords: (f32, f32, f32, f32, f32, f32)) {
-    let adjacent_top_corner = Vec3::new(coords.0 + 1.0, coords.1 + 1.0, coords.2 + 1.0);
+// fn spawn_cuboid(commands: &mut Commands, coords: (f32, f32, f32, f32, f32, f32)) {
+//     let adjacent_top_corner = Vec3::new(coords.0 + 1.0, coords.1 + 1.0, coords.2 + 1.0);
 
-    let bottom_corner = Vec3::new(
-        adjacent_top_corner.x - coords.3,
-        adjacent_top_corner.y - coords.4,
-        adjacent_top_corner.z - coords.5,
-    );
+//     // let bottom_corner = Vec3::new(
+//     //     adjacent_top_corner.x - coords.3,
+//     //     adjacent_top_corner.y - coords.4,
+//     //     adjacent_top_corner.z - coords.5,
+//     // );
 
-    meshes.add(Mesh::from(shape::Box::from_corners(
-        bottom_corner,
-        adjacent_top_corner,
-    )))
-}
+//     commands.spawn(Collider::cuboid(
+//         adjacent_top_corner.x,
+//         adjacent_top_corner.y,
+//         adjacent_top_corner.z,
+//     ));
+// }
 
 fn spawn_cube(
     commands: &mut Commands,

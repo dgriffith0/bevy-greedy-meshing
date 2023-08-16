@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy_mod_picking::prelude::RaycastPickCamera;
 use smooth_bevy_cameras::controllers::orbit::{OrbitCameraBundle, OrbitCameraController};
 
 pub struct GameCameraPlugin;
@@ -21,11 +22,14 @@ fn setup(mut commands: Commands) {
     });
 
     commands
-        .spawn(Camera3dBundle::default())
-        .insert((OrbitCameraBundle::new(
+        .spawn((
+            Camera3dBundle::default(),
+            RaycastPickCamera::default(), // Enable picking with this camera
+        ))
+        .insert(OrbitCameraBundle::new(
             OrbitCameraController::default(),
             Vec3::new(28.0, 45.0, 28.0),
             Vec3::new(8., 8., 8.),
             Vec3::Y,
-        ),));
+        ));
 }
